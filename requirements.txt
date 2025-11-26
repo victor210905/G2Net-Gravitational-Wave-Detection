@@ -1,0 +1,12 @@
+torch
+torchvision
+torchaudio
+timm
+nnAudio
+pandas
+numpy
+scipy
+scikit-learn
+tqdm
+jupyter
+ipywidgets
