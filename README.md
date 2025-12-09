@@ -1,60 +1,60 @@
-# G2Net Gravitational Wave Detection Project
+# G2Net Gravitational Wave Detection
 
-> **Final Project for Deep Learning Course**
+> **Deep Learning Final Project - Ton Duc Thang University**
+>
+> **Topic:** Detecting Gravitational Waves in Noisy Signals using Deep Learning
+>
+> **Supervisor:** Assoc. Prof. Dr. Lê Anh Cường
+>
+> **Students:**
+> - Đào Nguyễn Tấn Đạt (52300097)
+> - Nguyễn Duy Minh Đăng (52300095)
 
-This project implements a Deep Learning solution for the **G2Net Gravitational Wave Detection** challenge. It utilizes **Constant Q-Transform (CQT)** for signal-to-image conversion and an **EfficientNet** backbone to detect gravitational wave signals (binary classification) in noisy time-series data from LIGO/Virgo interferometers.
+---
 
-## Results
+## Project Results
 
-| Model | Image Size | Training Epochs | Best CV AUC | Public LB Score | Private LB Score |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **EfficientNet-B4** | 64x69 (CQT) | 12 | **0.86405** | **0.86620** | **0.86491** |
+Our solution utilizes an ensemble of **5 EfficientNet-B4 models** trained with **CQT Spectrograms**.
 
-## Project Structure
+| Metric | Score | Description |
+| :--- | :--- | :--- |
+| **Private LB** | **0.86613** | ~ Rank 807 (Late Submission) |
+| **Public LB** | 0.86731 | Tested on 16% of data |
+| **CV Score** | 0.86405 | 5-Fold Stratified Cross-Validation |
 
-- **`solution.ipynb`**: The main notebook containing the training loop, model definition, validation, and inference logic.
-- **`utils.py`**: Helper script for signal processing (Whitening, Bandpass), dataset loading, and configuration.
-- **`requirements.txt`**: List of Python dependencies.
-- **`submission.csv`**: The final prediction file generated for Kaggle submission.
+---
 
-## Key Features
+## Solution Overview
 
-- **Signal Processing**:
-  - **CQT (Constant Q-Transform)**: Converts 1D waves to 2D spectrograms using `nnAudio` (GPU-accelerated).
-  - **Whitening & Bandpass**: Applied to remove noise and normalize the signal (20-500Hz range).
-- **Model Architecture**:
-  - **Backbone**: `tf_efficientnet_b4_ns` (via `timm`).
-  - **Input**: 3 Channels (LIGO Hanford, LIGO Livingston, Virgo).
-- **Training Strategy**:
-  - **Stratified K-Fold**: 5-fold cross-validation.
-  - **Mixup Augmentation**: Improves model generalization.
-  - **Optimizer**: AdamW with Cosine Annealing LR.
+We built an end-to-end Deep Learning pipeline designed to handle non-stationary noise in gravitational wave signals.
 
-## Model Weights
+### 1. Signal Processing (1D)
+* **Bandpass Filter:** Applied a [20Hz, 500Hz] filter to remove strong seismic noise (low freq) and quantum noise (high freq).
+* **Spectral Whitening:** Normalized the signal energy by dividing it by the noise Power Spectral Density (PSD), effectively "flattening" the colored noise floor.
 
-Since the trained model file is large (>70MB), it is hosted externally. Please download the weights to run inference:
+### 2. Feature Extraction (2D)
+* **CQT (Constant Q-Transform):** Used `nnAudio` library for GPU-accelerated on-the-fly spectrogram generation.
+* **Why CQT?** Unlike STFT (linear scale), CQT uses a **Logarithmic frequency scale**, providing high resolution at low frequencies (20-60Hz) where gravitational waves initiate.
 
-[Download Model Weights](https://drive.google.com/file/d/137w0EIUFuoUWl8Cm1ZEUoajohLOYDuOM/view?usp=sharing)
+### 3. Model Architecture
+* **Backbone:** `tf_efficientnet_b4_ns` (Noisy Student pre-trained).
+* **Input:** 3-channel CQT Spectrograms (LIGO Hanford, LIGO Livingston, Virgo).
+* **Head:** Global Average Pooling $\rightarrow$ Dropout (0.2) $\rightarrow$ Linear $\rightarrow$ Sigmoid.
 
-After downloading, place the `best_model_fold_0.pth` file in the root directory.
+### 4. Training Strategy
+* **Loss Function:** `BCEWithLogitsLoss` for numerical stability.
+* **Optimizer:** `AdamW` with Weight Decay.
+* **Scheduler:** `OneCycleLR` (Super-convergence).
+* **Augmentation:**
+    * **Time Shift:** Randomly rolling the signal to learn translation invariance.
+    * **Mixup (alpha=0.2):** Blending samples to create soft labels, preventing the model from becoming over-confident on noisy data.
 
-## Installation
+---
 
-1. Clone the repository.
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-3. Download the Dataset from [Kaggle G2Net Competition](https://www.kaggle.com/c/g2net-gravitational-wave-detection/data) and extract it.
+## Repository Structure
 
-## Usage
-
-1. **Configuration**:
-   - The configuration is centralized in `utils.py` (class `ProjectConfig`).
-   - Please update `DATA_DIR` to point to your local dataset path before running.
-
-2. **Run Training / Inference**:
-   - Open `solution.ipynb` using Jupyter Lab or Notebook:
-     ```bash
-     jupyter notebook solution.ipynb
-     ```
-   - Run all cells to reproduce the training process and generate `submission.csv`.
+```text
+├── solution.ipynb    # Main notebook containing the full Pipeline (Training + Inference)
+├── submission.csv    # Final ensemble result (Private LB 0.866)
+├── README.md         # Project documentation
+└── requirements.txt  # List of dependencies
